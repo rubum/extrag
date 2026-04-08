@@ -1,0 +1,21 @@
+[package]
+name = "extrag-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json.workspace = true
+tokio = { workspace = true }
+tokio-stream = "0.1"
+tracing = { workspace = true }
+bytes = "1.5"
+futures = { workspace = true }
+tiktoken-rs = "0.9.1"
+reqwest = { version = "0.13.2", features = ["json"] }
+uuid = { version = "1.23.0", features = ["v4"] }
+
+[features]
+default = []

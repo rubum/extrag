@@ -1,0 +1,27 @@
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# Environment & Context
+.env
+.env.*
+.DS_Store
+
+# Databases & State
+*.db
+*.db-journal
+*.sqlite
+extrag_state.db
+
+# Vector Store (Local Volume)
+/qdrant_storage/
+
+# Logging & Tracing
+/logs/
+
+# IDEs
+.vscode/
+.idea/
+.fleet/
+.antigravity/

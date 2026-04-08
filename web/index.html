@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extrag - Data Intelligence Platform</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <i data-lucide="database" class="logo-icon"></i>
+                <span>Extrag API</span>
+            </div>
+            <nav class="nav-links">
+                <a href="#" class="nav-item active" data-view="retrieval">
+                    <i data-lucide="layout-dashboard"></i> Workspace
+                </a>
+                <a href="#" class="nav-item" data-view="ingestion">
+                    <i data-lucide="hard-drive-upload"></i> Ingestion Jobs
+                </a>
+                <a href="#" class="nav-item" data-view="config">
+                    <i data-lucide="settings"></i> Configuration
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-status">
+                    <div class="status-indicator online"></div>
+                    <span>Connected to API</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="top-nav">
+                <h1 id="view-title">Data Workspace</h1>
+                <div class="action-bar">
+                    <button class="btn btn-outline"><i data-lucide="bell"></i></button>
+                    <div class="avatar">Admin</div>
+                </div>
+            </header>
+
+            <div class="view-container" id="view-retrieval">
+                <div class="query-panel">
+                    <h3>Semantic Explorer</h3>
+                    <p class="subtitle">Execute advanced vector search with MemRL Fusion</p>
+                    <form id="retrieve-form" class="search-form">
+                        <div class="input-group">
+                            <i data-lucide="search" class="search-icon"></i>
+                            <input type="text" id="query-input" placeholder="Query the knowledge base..." required>
+                            <button type="submit" class="btn btn-primary">Run Query</button>
+                        </div>
+                        <div class="options">
+                            <label class="toggle">
+                                <input type="checkbox" id="use-hyde" checked>
+                                <span class="slider"></span>
+                                Enable HyDE
+                            </label>
+                            <div class="topk-wrapper">
+                                <label for="top-k">Top K:</label>
+                                <input type="number" id="top-k" value="5" min="1" max="20" class="sm-input">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="results-panel">
+                    <h3>Retrieved Context</h3>
+                    <div class="table-container">
+                        <table id="results-table">
+                            <thead>
+                                <tr>
+                                    <th width="10%">Score</th>
+                                    <th width="60%">Content</th>
+                                    <th width="10%">Utility (Q)</th>
+                                    <th width="20%">RL Feedback</th>
+                                </tr>
+                            </thead>
+                            <tbody id="results-body">
+                                <tr class="empty-state">
+                                    <td colspan="4">Run a query to view retrieved context chunks.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="view-container hidden" id="view-ingestion">
+                <div class="query-panel">
+                    <h3>New Ingestion Job</h3>
+                    <p class="subtitle">Extract, chunk, and index a new directory into Qdrant</p>
+                    <form id="ingest-form" class="search-form">
+                        <div class="input-group">
+                            <i data-lucide="folder" class="search-icon"></i>
+                            <input type="text" id="path-input" placeholder="Absolute directory path (e.g., /Users/macken/docs)" required>
+                            <button type="submit" class="btn btn-primary" id="ingest-btn">Run Pipeline</button>
+                        </div>
+                    </form>
+                    <div class="job-status" id="job-status">
+                        <div class="status-indicator idle"></div>
+                        <span id="job-text">Awaiting input...</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="view-container hidden" id="view-config">
+                <div class="query-panel">
+                    <h3>System Configuration</h3>
+                    <p class="subtitle">Platform constants (Read-Only)</p>
+                    <ul class="config-list">
+                        <li><strong>Ollama Host:</strong> http://localhost:11434</li>
+                        <li><strong>Qdrant Host:</strong> http://localhost:6333</li>
+                        <li><strong>API Port:</strong> 8080</li>
+                        <li><strong>Collection:</strong> extrag_knowledge</li>
+                    </ul>
+                </div>
+            </div>
+
+        </main>
+    </div>
+    <script src="js/app.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

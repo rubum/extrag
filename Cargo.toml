@@ -1,0 +1,23 @@
+[workspace]
+members = [
+    "extrag-core",
+    "etl",
+    "rag",
+    "api"
+]
+resolver = "2"
+
+[workspace.dependencies]
+tokio = { version = "1.37", features = ["full"] }
+async-trait = "0.1"
+thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing = "0.1"
+futures = "0.3"
+
+# Optimize defaults for standard production
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
