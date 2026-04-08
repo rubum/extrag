@@ -2,6 +2,8 @@
 
 Extrag is a high-performance, agentic Retrieval-Augmented Generation (RAG) platform built in Rust. It goes beyond traditional RAG by incorporating **MemRL** patterns (Value-Aware Retrieval) and **Reinforcement Learning** feedback loops, allowing the system's memory to evolve based on its real-world performance.
 
+![Extrag Dashboard Web Interface](assets/web_dashboard.png)
+
 ## 🚀 Key Features
 
 - **Agentic Memory (MemRL)**: Every document chunk carries a Utility Profile ($Q$-score). Retrieval is a fusion of Semantic Similarity and Historical Utility.
