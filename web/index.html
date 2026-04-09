@@ -29,6 +29,9 @@
                 <a href="#" class="nav-item" data-view="config">
                     <i data-lucide="sliders"></i> Settings
                 </a>
+                <a href="#" class="nav-item" data-view="documentation">
+                    <i data-lucide="book-open"></i> Documentation
+                </a>
             </nav>
             <div class="sidebar-footer">
                 <div class="user-status">
@@ -84,10 +87,8 @@
                         <table id="results-table">
                             <thead>
                                 <tr>
-                                    <th width="10%">Score</th>
-                                    <th width="50%">Content</th>
-                                    <th width="20%">Utility (Q)</th>
-                                    <th width="20%">RL Feedback</th>
+                                    <th>Retrieved Knowledge</th>
+                                    <th width="160px">Engine Metrics</th>
                                 </tr>
                             </thead>
                             <tbody id="results-body">
@@ -164,6 +165,249 @@
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="view-container hidden" id="view-documentation">
+                <div class="doc-layout">
+                    <!-- Documentation Navigation -->
+                    <aside class="doc-nav">
+                        <div class="doc-nav-group">
+                            <h4>Getting Started</h4>
+                            <ul>
+                                <li><a href="#doc-intro">Introduction</a></li>
+                                <li><a href="#doc-architecture">Engine Architecture</a></li>
+                            </ul>
+                        </div>
+                        <div class="doc-nav-group">
+                            <h4>Core Concepts</h4>
+                            <ul>
+                                <li><a href="#doc-etl">Agentic ETL Logic</a></li>
+                                <li><a href="#doc-rag">MemRL RAG Engine</a></li>
+                                <li><a href="#doc-agentic">Agentic Integration</a></li>
+                            </ul>
+                        </div>
+                        <div class="doc-nav-group">
+                            <h4>API Reference</h4>
+                            <ul>
+                                <li><a href="#api-ingest">/v1/ingest</a></li>
+                                <li><a href="#api-retrieve">/v1/retrieve</a></li>
+                                <li><a href="#api-feedback">/v1/feedback</a></li>
+                                <li><a href="#api-collections">/v1/collections</a></li>
+                            </ul>
+                        </div>
+                    </aside>
+
+                    <!-- Documentation Content -->
+                    <div class="doc-content">
+                        <section id="doc-intro" class="doc-section">
+                            <span class="badge">Engine v1.2</span>
+                            <h2>Intelligence via Memory</h2>
+                            <p>Extrag is a high-performance, <strong>Agentic ETL-to-RAG engine</strong> designed for systems that need more than just search. It transforms static documents into a <strong>dynamic memory layer</strong> that evolves based on real-world usage and feedback loops.</p>
+                        </section>
+
+                        <section id="doc-architecture" class="doc-section">
+                            <h3><i data-lucide="layers"></i> Engine Architecture</h3>
+                            <p>Extrag is built as a high-performance orchestration layer that bridges raw filesystem data with agentic intelligence. The engine operates across four primary planes:</p>
+                            
+                            <div class="info-grid">
+                                <div class="info-card">
+                                    <h4>1. The Ingestion Plane (Delta-ETL)</h4>
+                                    <p>The ingestion lifecycle begins with the <code>FilesystemExtractor</code>, which performs recursive directory traversal. To ensure maximum efficiency, every file is passed through our <strong>BLAKE3 Fingerprinting</strong> stage. By comparing content hashes against the <code>SyncStateStore</code>, the engine identifies exactly which documents require re-vectorization, effectively eliminating redundant LLM API calls for static data.</p>
+                                </div>
+                                <div class="info-card">
+                                    <h4>2. The Processing Plane (Rust-Native)</h4>
+                                    <p>Documents designated for ingestion are streamed into the <strong>Processing Pipeline</strong>. Here, the <code>RecursiveCharacterChunker</code> performs context-aware splitting, maintaining the structural integrity of your data. These chunks are then vectorized in parallel using <strong>Tokio-based concurrency</strong>, utilizing the full potential of your system's CPU and networking to achieve high-throughput embedding generation.</p>
+                                </div>
+                                <div class="info-card">
+                                    <h4>3. The Retrieval Plane (MemRL)</h4>
+                                    <p>The Retrieval Engine implements a <strong>Value-Encoded Search</strong> pattern. When a query is received, the engine performs a hybrid pass: it calculates the semantic similarity (spatial distance in the vector store) and fetches the historical utility ($Q$-score) for high-probability candidates. These distinct metrics are fused using Z-Score normalization, allowing the engine to surface "Trusted Knowledge" even when semantic matches are ambiguous.</p>
+                                </div>
+                                <div class="info-card">
+                                    <h4>4. The Feedback Plane (Reinforcement)</h4>
+                                    <p>The engine's intelligence is self-evolving. Every match returned to a user or agent can be programmatically rewarded or penalized via the Feedback API. These delta-rewards are applied directly to the vector payloads in <strong>Qdrant</strong>, persistently updating the knowledge base's global utility map. This creates a long-term memory that "remembers" which document chunks were actually helpful in solving real-world tasks.</p>
+                                </div>
+                            </div>
+
+                            <div class="panel pro-tip" style="margin-top: var(--sp-6)">
+                                <strong>Technical Stack:</strong> Built entirely in <strong>Rust</strong> for memory safety and zero-cost abstractions, Extrag utilizes <strong>Axum</strong> for its REST interface, <strong>Qdrant</strong> for vector persistence, and <strong>Ollama</strong> as the primary embedding and inference backbone.
+                            </div>
+                        </section>
+
+                        <section id="doc-etl" class="doc-section">
+                            <h3><i data-lucide="fast-forward"></i> Delta-Aware Agentic ETL</h3>
+                            <p>Traditional RAG systems re-index entire datasets, leading to massive API costs. Extrag implements <strong>Delta-Vectorization</strong> to solve this.</p>
+                            <div class="info-grid">
+                                <div class="info-card">
+                                    <h4><i data-lucide="hash"></i> Content Fingerprinting</h4>
+                                    <p>Extrag hashes every file content using <strong>BLAKE3</strong>. If a file's hash matches the previous ingestion state in our <code>SyncStateStore</code>, it is skipped entirely, saving compute and embedding costs.</p>
+                                </div>
+                                <div class="info-card">
+                                    <h4><i data-lucide="split"></i> Semantic Chunking</h4>
+                                    <p>Instead of fixed-window splits, our <code>RecursiveCharacterChunker</code> respects document structure (paragraphs, lists, code blocks) to preserve context. This reduces "broken context" errors in retrieval.</p>
+                                </div>
+                            </div>
+                            <div class="panel pro-tip">
+                                <strong><i data-lucide="lightbulb"></i> Pro Tip:</strong> Use the <code>/v1/cache/clear</code> endpoint to force a full re-sync if you update your embedding model or chunking strategy.
+                            </div>
+                        </section>
+
+                        <section id="doc-rag" class="doc-section">
+                            <h3><i data-lucide="brain"></i> MemRL RAG & Hybrid Scoring</h3>
+                            <p>Retrieval in Extrag is <strong>Action-Aware</strong>. The engine doesn't just ask "What is similar?", it asks "What has been useful?"</p>
+                            
+                            <div class="info-grid">
+                                <div class="info-card">
+                                    <h4>Z-Score Normalization</h4>
+                                    <p>Since semantic scores and utility rewards are in different ranges, Extrag normalizes both into Z-scores before fusion. This ensures that a few high rewards don't completely drown out semantic relevance.</p>
+                                </div>
+                                <div class="info-card">
+                                    <h4>The Utility Function</h4>
+                                    <p>Rewards (feedback) are additive. A chunk's <code>Q-score</code> starts at 0 and grows or shrinks based on <code>+1.0</code> or <code>-1.0</code> increments from the system or human experts.</p>
+                                </div>
+                            </div>
+
+                            <div class="panel">
+                                <strong>Hypothetical Document Embeddings (HyDE)</strong>
+                                <p>Extrag bridges the vocabulary gap by generating a 1-2 sentence "Pseudo-Answer" via the LLM before search. We find that embedding the <em>answer</em> yields much higher precision than embedding the <em>question</em> alone.</p>
+                            </div>
+                        </section>
+
+                        <section id="doc-agentic" class="doc-section">
+                            <h3><i data-lucide="bot"></i> Powering Agentic Systems</h3>
+                            <p>Extrag is designed to be the <strong>Long-Term Memory (LMT)</strong> for autonomous agents. By integrating with the <code>/v1/feedback</code> endpoint, an agent can "learn" over time.</p>
+                            
+                            <div class="info-grid">
+                                <div class="info-card">
+                                    <h4>Self-Healing Knowledge</h4>
+                                    <p>Unhelpful or outdated information naturally decays in rank over time as it receives negative feedback, ensuring the "sharpest" information stays at the top of the context window.</p>
+                                </div>
+                                <div class="info-card">
+                                    <h4>Tool-Augmented Retrieval</h4>
+                                    <p>Agents can use Extrag as a <code>Tool</code>. If the agent finds a retrieved chunk contains a hallucination, it can programmatically penalize that chunk, automatically preventing future hallucinations from the same source.</p>
+                                </div>
+                            </div>
+
+                            <div class="panel pro-tip">
+                                <strong><i data-lucide="terminal"></i> Agent Integration:</strong> When building agents, automate feedback by penalizing results if the agent's internal "Verification Step" fails after processing the retrieved context.
+                            </div>
+                        </section>
+
+                        <section id="api-reference" class="doc-section">
+                            <h2 id="doc-api">API Reference</h2>
+                            <p>Interact with the engine via a high-performance REST API. All requests accept and return <code>application/json</code> payloads.</p>
+
+                            <!-- Ingest API -->
+                            <div class="api-block" id="api-ingest">
+                                <div class="api-header">
+                                    <span class="method post">POST</span>
+                                    <code>/v1/ingest</code>
+                                </div>
+                                <p class="api-desc">Initiates a delta-aware ingestion of a filesystem directory. Only new or modified files will be re-indexed.</p>
+                                
+                                <div class="code-tabs" data-api="ingest">
+                                    <div class="tabs-header">
+                                        <button class="tab-btn active" data-lang="curl">cURL</button>
+                                        <button class="tab-btn" data-lang="js">JavaScript</button>
+                                        <button class="tab-btn" data-lang="py">Python</button>
+                                        <button class="copy-btn" title="Copy code"><i data-lucide="copy"></i></button>
+                                    </div>
+                                    <div class="tabs-content">
+                                        <pre class="tab-pane active" data-lang="curl"><code><span class="hl-fn">curl</span> <span class="hl-punc">-</span>X <span class="hl-keyword">POST</span> http://localhost:<span class="hl-num">8080</span>/v1/ingest <span class="hl-punc">\</span>
+  <span class="hl-punc">-</span>H <span class="hl-str">"Content-Type: application/json"</span> <span class="hl-punc">\</span>
+  <span class="hl-punc">-</span>d <span class="hl-str">'{"path": "/data/docs"}'</span></code></pre>
+                                        <pre class="tab-pane" data-lang="js"><code><span class="hl-keyword">const</span> <span class="hl-var">response</span> <span class="hl-punc">=</span> <span class="hl-keyword">await</span> <span class="hl-fn">fetch</span>(<span class="hl-str">'/v1/ingest'</span><span class="hl-punc">,</span> {
+  <span class="hl-var">method</span><span class="hl-punc">:</span> <span class="hl-str">'POST'</span><span class="hl-punc">,</span>
+  <span class="hl-var">body</span><span class="hl-punc">:</span> <span class="hl-var">JSON</span><span class="hl-punc">.</span><span class="hl-fn">stringify</span>({ <span class="hl-var">path</span><span class="hl-punc">:</span> <span class="hl-str">'/data/docs'</span> })
+});</code></pre>
+                                        <pre class="tab-pane" data-lang="py"><code><span class="hl-keyword">import</span> requests
+
+<span class="hl-var">res</span> <span class="hl-punc">=</span> <span class="hl-var">requests</span><span class="hl-punc">.</span><span class="hl-fn">post</span>(
+    <span class="hl-str">"http://localhost:8080/v1/ingest"</span><span class="hl-punc">,</span>
+    <span class="hl-var">json</span><span class="hl-punc">=</span>{<span class="hl-str">"path"</span><span class="hl-punc">:</span> <span class="hl-str">"/data/docs"</span>}
+)</code></pre>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Retrieve API -->
+                            <div class="api-block" id="api-retrieve">
+                                <div class="api-header">
+                                    <span class="method post">POST</span>
+                                    <code>/v1/retrieve</code>
+                                </div>
+                                <p class="api-desc">The primary retrieval endpoint. Use this to pull contextual chunks fused with their utility profiles.</p>
+                                
+                                <div class="code-tabs" data-api="retrieve">
+                                    <div class="tabs-header">
+                                        <button class="tab-btn active" data-lang="curl">cURL</button>
+                                        <button class="tab-btn" data-lang="js">JavaScript</button>
+                                        <button class="tab-btn" data-lang="py">Python</button>
+                                        <button class="copy-btn" title="Copy code"><i data-lucide="copy"></i></button>
+                                    </div>
+                                    <div class="tabs-content">
+                                        <pre class="tab-pane active" data-lang="curl"><code><span class="hl-fn">curl</span> <span class="hl-punc">-</span>X <span class="hl-keyword">POST</span> http://localhost:<span class="hl-num">8080</span>/v1/retrieve <span class="hl-punc">\</span>
+  <span class="hl-punc">-</span>H <span class="hl-str">"Content-Type: application/json"</span> <span class="hl-punc">\</span>
+  <span class="hl-punc">-</span>d <span class="hl-str">'{"query": "MemRL Logic", "top_k": 3}'</span></code></pre>
+                                        <pre class="tab-pane" data-lang="js"><code><span class="hl-keyword">const</span> <span class="hl-var">res</span> <span class="hl-punc">=</span> <span class="hl-keyword">await</span> <span class="hl-fn">fetch</span>(<span class="hl-str">'/v1/retrieve'</span><span class="hl-punc">,</span> {
+  <span class="hl-var">method</span><span class="hl-punc">:</span> <span class="hl-str">'POST'</span><span class="hl-punc">,</span>
+  <span class="hl-var">body</span><span class="hl-punc">:</span> <span class="hl-var">JSON</span><span class="hl-punc">.</span><span class="hl-fn">stringify</span>({ <span class="hl-var">query</span><span class="hl-punc">:</span> <span class="hl-str">'...'</span><span class="hl-punc">,</span> <span class="hl-var">top_k</span><span class="hl-punc">:</span> <span class="hl-num">3</span> })
+});</code></pre>
+                                        <pre class="tab-pane" data-lang="py"><code><span class="hl-var">res</span> <span class="hl-punc">=</span> <span class="hl-var">requests</span><span class="hl-punc">.</span><span class="hl-fn">post</span>(<span class="hl-str">"..."</span><span class="hl-punc">,</span> <span class="hl-var">json</span><span class="hl-punc">=</span>{<span class="hl-str">"query"</span><span class="hl-punc">:</span> <span class="hl-str">"..."</span>})</code></pre>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Feedback API -->
+                            <div class="api-block" id="api-feedback">
+                                <div class="api-header">
+                                    <span class="method post">POST</span>
+                                    <code>/v1/feedback</code>
+                                </div>
+                                <p class="api-desc">Submit a reward or penalty to a specific piece of context to update its Q-score.</p>
+                                
+                                <div class="code-tabs" data-api="feedback">
+                                    <div class="tabs-header">
+                                        <button class="tab-btn active" data-lang="curl">cURL</button>
+                                        <button class="tab-btn" data-lang="js">JavaScript</button>
+                                        <button class="tab-btn" data-lang="py">Python</button>
+                                        <button class="copy-btn" title="Copy code"><i data-lucide="copy"></i></button>
+                                    </div>
+                                    <div class="tabs-content">
+                                        <pre class="tab-pane active" data-lang="curl"><code><span class="hl-fn">curl</span> <span class="hl-punc">-</span>X <span class="hl-keyword">POST</span> http://localhost:<span class="hl-num">8080</span>/v1/feedback <span class="hl-punc">\</span>
+  <span class="hl-punc">-</span>d <span class="hl-str">'{"document_id": "...", "reward": 1.0}'</span></code></pre>
+                                        <pre class="tab-pane" data-lang="js"><code><span class="hl-fn">fetch</span>(<span class="hl-str">'/v1/feedback'</span><span class="hl-punc">,</span> {
+  <span class="hl-var">method</span><span class="hl-punc">:</span> <span class="hl-str">'POST'</span><span class="hl-punc">,</span>
+  <span class="hl-var">body</span><span class="hl-punc">:</span> <span class="hl-var">JSON</span><span class="hl-punc">.</span><span class="hl-fn">stringify</span>({ <span class="hl-var">document_id</span><span class="hl-punc">:</span> <span class="hl-str">'...'</span><span class="hl-punc">,</span> <span class="hl-var">reward</span><span class="hl-punc">:</span> <span class="hl-num">1.0</span> })
+});</code></pre>
+                                        <pre class="tab-pane" data-lang="py"><code><span class="hl-var">requests</span><span class="hl-punc">.</span><span class="hl-fn">post</span>(<span class="hl-str">"..."</span><span class="hl-punc">,</span> <span class="hl-var">json</span><span class="hl-punc">=</span>{<span class="hl-str">"reward"</span><span class="hl-punc">:</span> <span class="hl-num">1.0</span>})</code></pre>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Management API -->
+                            <div class="api-block" id="api-collections">
+                                <div class="api-header">
+                                    <span class="method get">GET</span>
+                                    <code>/v1/collections</code>
+                                </div>
+                                <p class="api-desc">Returns a list of all existing collections in the vector store.</p>
+                                
+                                <div class="code-tabs" data-api="collections">
+                                    <div class="tabs-header">
+                                        <button class="tab-btn active" data-lang="curl">cURL</button>
+                                        <button class="tab-btn" data-lang="js">JavaScript</button>
+                                        <button class="tab-btn" data-lang="py">Python</button>
+                                    </div>
+                                    <div class="tabs-content">
+                                        <pre class="tab-pane active" data-lang="curl"><code><span class="hl-fn">curl</span> http://localhost:<span class="hl-num">8080</span>/v1/collections</code></pre>
+                                        <pre class="tab-pane" data-lang="js"><code><span class="hl-keyword">const</span> <span class="hl-var">data</span> <span class="hl-punc">=</span> <span class="hl-keyword">await</span> (<span class="hl-keyword">await</span> <span class="hl-fn">fetch</span>(<span class="hl-str">'/v1/collections'</span>)).<span class="hl-fn">json</span>();</code></pre>
+                                        <pre class="tab-pane" data-lang="py"><code><span class="hl-var">collections</span> <span class="hl-punc">=</span> <span class="hl-var">requests</span><span class="hl-punc">.</span><span class="hl-fn">get</span>(<span class="hl-str">"..."</span>).<span class="hl-fn">json</span>()</code></pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
                     </div>
                 </div>
             </div>

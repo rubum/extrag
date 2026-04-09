@@ -15,7 +15,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const titles = {
                 'retrieval': 'Dynamic Explore',
                 'ingestion': 'Data Pipeline',
-                'config': 'System State'
+                'config': 'System State',
+                'documentation': 'Knowledge Base'
             };
 
             viewTitle.textContent = titles[targetView] || 'Workspace';
@@ -25,6 +26,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     v.classList.remove('hidden');
                     if (targetView === 'config') {
                         loadCollections();
+                    }
+                    if (targetView === 'documentation') {
+                        initDocTabs();
                     }
                 } else {
                     v.classList.add('hidden');
@@ -94,15 +98,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         resultsBody.innerHTML = results.map(r => `
             <tr>
-                <td><span class="pill">${r.score.toFixed(4)}</span></td>
                 <td>
-                    <div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:8px;font-family:monospace">ID: ${r.id}</div>
+                    <div class="result-id">Chunk ID: ${r.id}</div>
                     <div class="content-preview">${escapeHtml(r.content)}</div>
                 </td>
-                <td><span class="utility-val">${r.utility.toFixed(4)}</span></td>
-                <td class="feedback-actions">
-                    <button class="btn btn-sm btn-outline feedback-btn" data-id="${r.id}" data-val="1.0" title="Helpful (+1.0)"><i data-lucide="thumbs-up"></i></button>
-                    <button class="btn btn-sm btn-outline feedback-btn" data-id="${r.id}" data-val="-1.0" title="Not Helpful (-1.0)"><i data-lucide="thumbs-down"></i></button>
+                <td>
+                    <div class="result-meta">
+                        <div class="metric-item">
+                            <span class="metric-label">Semantic Score</span>
+                            <span class="pill">${r.score.toFixed(4)}</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">RL Utility (Q)</span>
+                            <span class="pill">${r.utility.toFixed(4)}</span>
+                        </div>
+                        <div class="feedback-group">
+                            <button class="btn btn-sm btn-outline feedback-btn" data-id="${r.id}" data-val="1.0" title="Helpful (+1.0)"><i data-lucide="thumbs-up"></i></button>
+                            <button class="btn btn-sm btn-outline feedback-btn" data-id="${r.id}" data-val="-1.0" title="Not Helpful (-1.0)"><i data-lucide="thumbs-down"></i></button>
+                        </div>
+                    </div>
                 </td>
             </tr>
         `).join('');
@@ -188,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/v1/collections');
             if (!response.ok) throw new Error('Failed to fetch');
             const data = await response.json();
-            
+
             // Artificial delay to prevent "flicker" on super fast connections
             setTimeout(() => {
                 renderCollections(data.collections);
@@ -398,7 +412,105 @@ document.addEventListener('DOMContentLoaded', () => {
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
     }
-    
+
+    // -- Documentation Logic --
+    function initDocTabs() {
+        const docLinks = document.querySelectorAll('.doc-nav a');
+        const codeTabs = document.querySelectorAll('.code-tabs');
+
+        // Language Switching Logic
+        codeTabs.forEach(container => {
+            const btns = container.querySelectorAll('.tab-btn');
+            const panes = container.querySelectorAll('.tab-pane');
+
+            btns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const lang = btn.getAttribute('data-lang');
+                    
+                    // Update all tab groups to the same language for consistency
+                    document.querySelectorAll(`.tab-btn[data-lang="${lang}"]`).forEach(b => {
+                        const parent = b.closest('.code-tabs');
+                        parent.querySelectorAll('.tab-btn').forEach(tb => tb.classList.remove('active'));
+                        parent.querySelectorAll('.tab-pane').forEach(tp => tp.classList.remove('active'));
+                        
+                        b.classList.add('active');
+                        parent.querySelector(`.tab-pane[data-lang="${lang}"]`).classList.add('active');
+                    });
+                });
+            });
+        });
+
+        // Smooth Scroll for Doc Nav
+        docLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                const href = link.getAttribute('href');
+                if (href.startsWith('#')) {
+                    e.preventDefault();
+                    const targetEl = document.querySelector(href);
+                    if (targetEl) {
+                        targetEl.scrollIntoView({ behavior: 'smooth' });
+                    }
+                }
+            });
+        });
+    }
+
+    // Copy to clipboard logic
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const tabsContainer = btn.closest('.code-tabs');
+            const activePane = tabsContainer.querySelector('.tab-pane.active');
+            if (!activePane) return;
+
+            const text = activePane.innerText;
+
+            try {
+                await navigator.clipboard.writeText(text);
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<i data-lucide="check"></i>';
+                btn.classList.add('copied');
+                if (window.lucide) lucide.createIcons();
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.classList.remove('copied');
+                    if (window.lucide) lucide.createIcons();
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy code: ', err);
+            }
+        });
+    });
+
+    // ScrollSpy for Documentation
+    const mainContent = document.querySelector('.main-content');
+    const docSections = document.querySelectorAll('.doc-section');
+    const docSideLinks = document.querySelectorAll('.doc-nav a');
+
+    if (mainContent && docSections.length > 0) {
+        const observerOptions = {
+            root: mainContent,
+            threshold: 0,
+            rootMargin: '-10% 0px -80% 0px' // High sensitivity to items near the top
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const id = entry.target.getAttribute('id');
+                    docSideLinks.forEach(link => {
+                        link.classList.remove('active');
+                        if (link.getAttribute('href') === `#${id}`) {
+                            link.classList.add('active');
+                        }
+                    });
+                }
+            });
+        }, observerOptions);
+
+        docSections.forEach(section => observer.observe(section));
+    }
+
     // Initial Load
     lucide.createIcons();
 });
