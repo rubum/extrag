@@ -1,6 +1,6 @@
-# Extrag Agentic Platform
+# Extrag: The Agentic ETL-to-RAG Engine
 
-Extrag is a high-performance, agentic Retrieval-Augmented Generation (RAG) platform built in Rust. It goes beyond traditional RAG by incorporating **MemRL** patterns (Value-Aware Retrieval) and **Reinforcement Learning** feedback loops, allowing the system's memory to evolve based on its real-world performance.
+Extrag is a high-performance, agentic ETL-to-RAG engine built in Rust. It goes beyond traditional RAG by incorporating **MemRL** patterns (Value-Aware Retrieval) and **Reinforcement Learning** feedback loops, allowing the system's memory to evolve based on its real-world performance.
 
 ![Extrag Dashboard Web Interface](assets/web_dashboard.png)
 
@@ -20,7 +20,7 @@ Extrag is a high-performance, agentic Retrieval-Augmented Generation (RAG) platf
 - `extrag-core`: Foundational traits and common types (Embedder, VectorStore, LlmClient, etc.).
 - `etl`: Extraction, Transformation, and Loading logic. Scans files, parses formats, and chunks text.
 - `rag`: The orchestration layer for Ingestion Pipelines and Retrieval Engines.
-- `api`: The Axum REST server providing the platform interface.
+- `api`: The Axum REST server providing the engine interface.
 
 ## 🛠 Getting Started
 
@@ -32,7 +32,7 @@ Extrag is a high-performance, agentic Retrieval-Augmented Generation (RAG) platf
     ```
 2.  **Docker**: Required to run Qdrant.
 
-### Running the Platform
+### Running the Engine
 
 1.  **Start the Infrastructure**:
     ```bash

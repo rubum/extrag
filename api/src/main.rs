@@ -1,6 +1,6 @@
-//! # Extrag Agentic Platform API
+//! # Extrag: The Agentic ETL-to-RAG Engine
 //!
-//! This module provides the Axum-based REST API for the Extrag RAG platform.
+//! This module provides the Axum-based REST API for the Extrag ETL-to-RAG Engine.
 //! It exposes endpoints for document ingestion, advanced agentic retrieval (HyDE + Multi-Query),
 //! and explicit feedback loops for Reinforcement Learning (Utility scoring).
 
@@ -26,7 +26,7 @@ use rag::ingestion::IngestionPipeline;
 use rag::retrieval::{AdvancedRetrievalEngine, RetrievalConfig};
 use rag::sync_state::SqliteSyncStateStore;
 
-// --- Platform Configuration Constants ---
+// --- Engine Configuration Constants ---
 const SERVER_PORT: u16 = 8080;
 // Fallbacks are now handled in main()
 const COLLECTION_NAME: &str = "extrag_knowledge";
@@ -96,7 +96,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    tracing::info!("Initializing Extrag Platform...");
+    tracing::info!("Initializing Extrag Engine...");
 
     let ollama_url =
         std::env::var("OLLAMA_BASE_URL").unwrap_or_else(|_| "http://localhost:11434".to_string());
