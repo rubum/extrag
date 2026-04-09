@@ -153,8 +153,9 @@ async fn handle_ingest(
     let sync_store = Box::new((*state.sync_store).clone());
     let chunker = Box::new(RecursiveCharacterChunker::default());
 
+    let path = payload.path.trim();
     let extractors: Vec<Box<dyn extrag_core::etl::BatchExtractor>> =
-        vec![Box::new(etl::FilesystemExtractor::new(&payload.path))];
+        vec![Box::new(etl::FilesystemExtractor::new(path))];
 
     let parsers: Vec<Box<dyn extrag_core::etl::Parser>> = vec![
         Box::new(etl::MarkdownParser),

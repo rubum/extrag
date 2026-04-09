@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     retrieveForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const query = document.getElementById('query-input').value;
+        const query = document.getElementById('query-input').value.trim();
         const useHyde = document.getElementById('use-hyde').checked;
         const topK = parseInt(document.getElementById('top-k').value, 10);
         
@@ -120,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     ingestForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const path = document.getElementById('path-input').value;
+        const path = document.getElementById('path-input').value.trim();
         const submitBtn = document.getElementById('ingest-btn');
         
         submitBtn.disabled = true;

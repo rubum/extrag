@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
     <link rel="stylesheet" href="css/styles.css">
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
+
 <body>
     <div class="layout">
         <!-- Sidebar Navigation -->
@@ -40,7 +42,7 @@
                 <h1 id="view-title">Data Workspace</h1>
                 <div class="action-bar">
                     <button class="btn btn-outline"><i data-lucide="bell"></i></button>
-                    <div class="avatar">Admin</div>
+                    <div class="avatar">A</div>
                 </div>
             </header>
 
@@ -97,7 +99,8 @@
                     <form id="ingest-form" class="search-form">
                         <div class="input-group">
                             <i data-lucide="folder" class="search-icon"></i>
-                            <input type="text" id="path-input" placeholder="Absolute directory path (e.g., /Users/macken/docs)" required>
+                            <input type="text" id="path-input"
+                                placeholder="Absolute directory path (e.g., /Users/macken/docs)" required>
                             <button type="submit" class="btn btn-primary" id="ingest-btn">Run Pipeline</button>
                         </div>
                     </form>
@@ -107,7 +110,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="view-container hidden" id="view-config">
                 <div class="query-panel">
                     <h3>System Configuration</h3>
@@ -128,4 +131,5 @@
         lucide.createIcons();
     </script>
 </body>
+
 </html>
