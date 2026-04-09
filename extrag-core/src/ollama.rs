@@ -1,6 +1,6 @@
 //! # Ollama Backend Integration
-//! 
-//! High-performance client for interacting with the Ollama REST API. 
+//!
+//! High-performance client for interacting with the Ollama REST API.
 //! Supports both text generation and vector embedding generation.
 
 use crate::embeddings::{Embedder, Embedding};
@@ -14,8 +14,8 @@ use serde::{Deserialize, Serialize};
 pub const DEFAULT_OLLAMA_MODEL: &str = "gemma4:latest";
 
 /// A specialized client for interacting with a localized Ollama instance.
-/// 
-/// This client implements both [`Embedder`] and [`LlmClient`], acting as a 
+///
+/// This client implements both [`Embedder`] and [`LlmClient`], acting as a
 /// unified interface for cross-backend AI workflows.
 #[derive(Debug, Clone)]
 pub struct OllamaClient {
@@ -26,7 +26,7 @@ pub struct OllamaClient {
 
 impl OllamaClient {
     /// Creates a new OllamaClient pointing to the specified base URL.
-    /// 
+    ///
     /// # Arguments
     /// * `base_url` - The endpoint of the Ollama server (e.g., "http://localhost:11434").
     /// * `model` - Optional model name override. Defaults to [`DEFAULT_OLLAMA_MODEL`].
@@ -45,6 +45,7 @@ struct OllamaGenerateRequest<'a> {
     prompt: &'a str,
     system: Option<&'a str>,
     stream: bool,
+    think: bool,
 }
 
 #[derive(Deserialize)]
@@ -83,6 +84,7 @@ impl LlmClient for OllamaClient {
                 Some(system)
             },
             stream: false,
+            think: false,
         };
 
         let url = format!("{}/api/generate", self.base_url);

@@ -12,3 +12,4 @@ serde_json = { workspace = true }
 bytes = "1.5"
 tracing = { workspace = true }
 walkdir = "2.5.0"
+lopdf = "0.33"

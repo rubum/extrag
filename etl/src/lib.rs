@@ -7,4 +7,4 @@ pub mod file_extractor;
 pub mod parsers;
 
 pub use file_extractor::FilesystemExtractor;
-pub use parsers::{JsonParser, MarkdownParser, PlainTextParser};
+pub use parsers::{JsonParser, MarkdownParser, PdfParser, PlainTextParser};

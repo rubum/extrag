@@ -89,7 +89,7 @@ pub async fn handle_ingest(
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     tracing::info!("Starting ingestion for path: {}", payload.path);
 
-    let embedder = Box::new((*state.llm_client).clone());
+    let embedder = Box::new((*state.embedder).clone());
     let vector_store = Box::new((*state.vector_store).clone());
     let sync_store = Box::new((*state.sync_store).clone());
     let chunker = Box::new(RecursiveCharacterChunker::default());
@@ -101,6 +101,7 @@ pub async fn handle_ingest(
     let parsers: Vec<Box<dyn extrag_core::etl::Parser>> = vec![
         Box::new(etl::MarkdownParser),
         Box::new(etl::JsonParser),
+        Box::new(etl::PdfParser),
         Box::new(etl::PlainTextParser),
     ];
 
@@ -136,7 +137,7 @@ pub async fn handle_retrieve(
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     tracing::info!("Retrieving context for query: {}", payload.query);
 
-    let embedder = Box::new((*state.llm_client).clone());
+    let embedder = Box::new((*state.embedder).clone());
     let vector_store = Box::new((*state.vector_store).clone());
     let llm_client = Box::new((*state.llm_client).clone());
 
