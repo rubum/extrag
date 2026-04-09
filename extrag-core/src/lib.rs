@@ -19,6 +19,7 @@ pub mod qdrant;
 pub mod reranker;
 pub mod test_utils;
 pub mod vector_store;
+mod memrl_tests;
 
 // Export foundational errors
 pub use error::ExtragError;

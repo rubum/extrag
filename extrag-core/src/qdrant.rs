@@ -186,10 +186,61 @@ impl VectorStore for QdrantVectorStore {
         Ok(results)
     }
 
-    async fn update_utility(&self, _id: &str, _delta: f32) -> Result<(), ExtragError> {
-        // Since we cannot read/update atomically without fetch, we just skip it or send payload patch
-        // Qdrant allows patch payload if we just overwrite. To add, we need fetch -> update -> put.
-        // Assuming we do not need this in the REST interface yet.
+    async fn update_utility(&self, id: &str, reward: f32) -> Result<(), ExtragError> {
+        // 1. Fetch the current point to get the existing utility score
+        let url = format!(
+            "{}/collections/{}/points/{}",
+            self.base_url, self.collection_name, id
+        );
+
+        let resp = self
+            .client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| ExtragError::VectorStoreError(format!("Qdrant fetch error: {}", e)))?;
+
+        let old_val = if resp.status().is_success() {
+            let json: serde_json::Value = resp.json().await.unwrap_or_default();
+            json["result"]["payload"]["utility"].as_f64().unwrap_or(0.0) as f32
+        } else {
+            0.0
+        };
+
+        // 2. Calculate new utility using the MemRL Moving Average formula (Q-value update)
+        // Q_new = Q_old + alpha * (Reward - Q_old)
+        let alpha = 0.1;
+        let new_val = old_val + alpha * (reward - old_val);
+
+        tracing::debug!(
+            "Updating document {} utility: {} -> {} (reward: {})",
+            id, old_val, new_val, reward
+        );
+
+        // 3. Patch the payload in Qdrant
+        let patch_url = format!(
+            "{}/collections/{}/points/payload",
+            self.base_url, self.collection_name
+        );
+
+        let patch_resp = self
+            .client
+            .post(&patch_url)
+            .json(&json!({
+                "payload": { "utility": new_val },
+                "points": [id]
+            }))
+            .send()
+            .await
+            .map_err(|e| ExtragError::VectorStoreError(format!("Qdrant patch error: {}", e)))?;
+
+        if !patch_resp.status().is_success() {
+            return Err(ExtragError::VectorStoreError(format!(
+                "Qdrant patch failed: {}",
+                patch_resp.status()
+            )));
+        }
+
         Ok(())
     }
 
@@ -217,6 +268,57 @@ impl VectorStore for QdrantVectorStore {
         if !resp.status().is_success() {
             return Err(ExtragError::VectorStoreError(format!(
                 "Qdrant returned error: {}",
+                resp.status()
+            )));
+        }
+
+        Ok(())
+    }
+
+    async fn list_collections(&self) -> Result<Vec<String>, ExtragError> {
+        let url = format!("{}/collections", self.base_url);
+        let resp = self
+            .client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| ExtragError::VectorStoreError(format!("Qdrant list collections error: {}", e)))?;
+
+        if !resp.status().is_success() {
+            return Err(ExtragError::VectorStoreError(format!(
+                "Qdrant returned error while listing: {}",
+                resp.status()
+            )));
+        }
+
+        let json_resp: serde_json::Value = resp.json().await.map_err(|e| {
+            ExtragError::VectorStoreError(format!("Failed to parse collections JSON: {}", e))
+        })?;
+
+        let mut collections = Vec::new();
+        if let Some(cols) = json_resp["result"]["collections"].as_array() {
+            for c in cols {
+                if let Some(name) = c["name"].as_str() {
+                    collections.push(name.to_string());
+                }
+            }
+        }
+        Ok(collections)
+    }
+
+    async fn delete_collection(&self, name: &str) -> Result<(), ExtragError> {
+        let url = format!("{}/collections/{}", self.base_url, name);
+        let resp = self
+            .client
+            .delete(&url)
+            .send()
+            .await
+            .map_err(|e| ExtragError::VectorStoreError(format!("Qdrant delete collection error: {}", e)))?;
+
+        if !resp.status().is_success() {
+            return Err(ExtragError::VectorStoreError(format!(
+                "Qdrant returned error deleting {}: {}",
+                name,
                 resp.status()
             )));
         }

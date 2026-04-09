@@ -49,6 +49,9 @@ pub trait SyncStateStore: Send + Sync {
 
     /// Returns a list of all source IDs currently tracked in the state store.
     async fn get_all_source_ids(&self) -> Result<Vec<String>, ExtragError>;
+
+    /// Clears all stored document states, resetting the synchronization history.
+    async fn clear_all(&self) -> Result<(), ExtragError>;
 }
 
 /// A SQLite-backed implementation of [`SyncStateStore`].
@@ -131,5 +134,56 @@ impl SyncStateStore for SqliteSyncStateStore {
             .map_err(|e| ExtragError::VectorStoreError(format!("DB selection failed: {}", e)))?;
 
         Ok(rows.into_iter().map(|r| r.get(0)).collect())
+    }
+
+    async fn clear_all(&self) -> Result<(), ExtragError> {
+        sqlx::query("DELETE FROM document_states")
+            .execute(&self.pool)
+            .await
+            .map_err(|e| ExtragError::VectorStoreError(format!("DB clear failed: {}", e)))?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_sqlite_sync_state_clear_all() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test_sync.db");
+        let store = SqliteSyncStateStore::new(&db_path).await.unwrap();
+
+        // 1. Initial state should be empty
+        assert_eq!(store.get_all_source_ids().await.unwrap().len(), 0);
+
+        // 2. Add some states
+        store
+            .update_document_state(DocumentSyncState {
+                source_id: "doc1".to_string(),
+                last_modified: Some(100),
+                content_hash: Some("hash1".to_string()),
+            })
+            .await
+            .unwrap();
+
+        store
+            .update_document_state(DocumentSyncState {
+                source_id: "doc2".to_string(),
+                last_modified: Some(200),
+                content_hash: Some("hash2".to_string()),
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(store.get_all_source_ids().await.unwrap().len(), 2);
+
+        // 3. Clear all
+        store.clear_all().await.unwrap();
+
+        // 4. Should be empty again
+        assert_eq!(store.get_all_source_ids().await.unwrap().len(), 0);
     }
 }

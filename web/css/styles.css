@@ -200,3 +200,54 @@ tr:hover:not(.empty-state) { background-color: rgba(255, 255, 255, 0.02); }
 
 .job-status { margin-top: 16px; display: flex; align-items: center; gap: 12px; font-size: 0.9rem; color: var(--text-muted); background: var(--bg-base); padding: 12px; border-radius: 6px; border: 1px solid var(--border); }
 .config-list { list-style: none; display: flex; flex-direction: column; gap: 12px; color: var(--text-primary); }
+
+/* Management UI */
+.management-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+.mini-table {
+    background: var(--bg-base);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.mini-table table th {
+    padding: 8px 12px;
+    font-size: 0.75rem;
+}
+
+.mini-table table td {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    vertical-align: middle;
+}
+
+.loading-state {
+    text-align: center;
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 20px !important;
+}
+
+.btn-danger {
+    background-color: var(--danger);
+    color: white;
+}
+
+.btn-danger:hover {
+    filter: brightness(1.2);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-out forwards;
+}

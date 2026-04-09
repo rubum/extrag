@@ -16,8 +16,11 @@ document.addEventListener('DOMContentLoaded', () => {
             viewTitle.textContent = targetView.charAt(0).toUpperCase() + targetView.slice(1) + ' Workspace';
 
             views.forEach(v => {
-                if (v.id === `view-${targetView}`) {
+            if (v.id === `view-${targetView}`) {
                     v.classList.remove('hidden');
+                    if (targetView === 'config') {
+                        loadCollections();
+                    }
                 } else {
                     v.classList.add('hidden');
                 }
@@ -146,6 +149,110 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             submitBtn.disabled = false;
         }
+    });
+    
+    // -- Configuration & Management --
+    const collectionsBody = document.getElementById('collections-body');
+    const clearCacheBtn = document.getElementById('clear-cache-btn');
+    const refreshColsBtn = document.getElementById('refresh-cols-btn');
+
+    async function loadCollections() {
+        // Clear previous and show loading
+        collectionsBody.innerHTML = '<tr><td colspan="2" class="loading-state">Loading collections...</td></tr>';
+        
+        try {
+            const response = await fetch('/v1/collections');
+            if (!response.ok) throw new Error('Failed to fetch');
+            const data = await response.json();
+            
+            // Artificial delay to prevent "flicker" on super fast connections
+            setTimeout(() => {
+                renderCollections(data.collections);
+            }, 300);
+        } catch (error) {
+            console.error("Failed to load collections", error);
+            collectionsBody.innerHTML = '<tr><td colspan="2" class="loading-state" style="color:var(--danger)">Failed to load collections</td></tr>';
+        }
+    }
+
+    function renderCollections(collections) {
+        // Wipe everything
+        collectionsBody.innerHTML = '';
+
+        if (!collections || collections.length === 0) {
+            collectionsBody.innerHTML = '<tr><td colspan="2" class="loading-state">No collections found</td></tr>';
+            return;
+        }
+
+        const html = collections.map(name => `
+            <tr class="fade-in">
+                <td style="font-family:monospace">${name}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline btn-danger delete-col-btn" data-name="${name}">
+                        <i data-lucide="trash-2"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+        
+        collectionsBody.innerHTML = html;
+        lucide.createIcons();
+        attachCollectionListeners();
+    }
+
+    function attachCollectionListeners() {
+        document.querySelectorAll('.delete-col-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const name = e.currentTarget.getAttribute('data-name');
+                if (!confirm(`Are you sure you want to delete collection '${name}'? This will also clear the ingestion cache.`)) return;
+                
+                e.currentTarget.disabled = true;
+                e.currentTarget.innerHTML = '<i data-lucide="loader" class="spin"></i>';
+                lucide.createIcons();
+
+                try {
+                    const response = await fetch(`/v1/collections/${name}`, { method: 'DELETE' });
+                    const data = await response.json();
+                    alert(data.message);
+                    loadCollections(); // Refresh list
+                } catch (error) {
+                    console.error("Delete failed", error);
+                    alert(`Failed to delete collection: ${error.message}`);
+                    e.currentTarget.disabled = false;
+                    e.currentTarget.innerHTML = '<i data-lucide="trash-2"></i>';
+                    lucide.createIcons();
+                }
+            });
+        });
+    }
+
+    clearCacheBtn.addEventListener('click', async () => {
+        if (!confirm("Are you sure you want to clear the ingestion cache? This will force a full re-index on next ingestion.")) return;
+        
+        clearCacheBtn.disabled = true;
+        const originalContent = clearCacheBtn.innerHTML;
+        clearCacheBtn.innerHTML = '<i data-lucide="loader" class="spin"></i> Clearing...';
+        lucide.createIcons();
+
+        try {
+            const response = await fetch('/v1/cache/clear', { method: 'POST' });
+            const data = await response.json();
+            alert(data.message);
+        } catch (error) {
+            console.error("Clear cache failed", error);
+            alert(`Failed to clear cache: ${error.message}`);
+        } finally {
+            clearCacheBtn.disabled = false;
+            clearCacheBtn.innerHTML = originalContent;
+            lucide.createIcons();
+        }
+    });
+
+    refreshColsBtn.addEventListener('click', () => {
+        const icon = refreshColsBtn.querySelector('i');
+        icon.classList.add('spin');
+        loadCollections();
+        setTimeout(() => icon.classList.remove('spin'), 600);
     });
 
     // Utilities

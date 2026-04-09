@@ -82,4 +82,10 @@ pub trait VectorStore: Send + Sync {
     /// 
     /// Useful for updating or re-indexing a modified file.
     async fn delete_by_source_id(&self, source_id: &str) -> Result<(), ExtragError>;
+
+    /// Lists all collections available in the vector store.
+    async fn list_collections(&self) -> Result<Vec<String>, ExtragError>;
+
+    /// Deletes an entire collection and all its data.
+    async fn delete_collection(&self, name: &str) -> Result<(), ExtragError>;
 }

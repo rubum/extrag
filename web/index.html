@@ -15,7 +15,7 @@
         <aside class="sidebar">
             <div class="brand">
                 <i data-lucide="database" class="logo-icon"></i>
-                <span>Extrag API</span>
+                <span>Extrag Engine</span>
             </div>
             <nav class="nav-links">
                 <a href="#" class="nav-item active" data-view="retrieval">
@@ -31,7 +31,7 @@
             <div class="sidebar-footer">
                 <div class="user-status">
                     <div class="status-indicator online"></div>
-                    <span>Connected to API</span>
+                    <span>Engine running</span>
                 </div>
             </div>
         </aside>
@@ -121,6 +121,41 @@
                         <li><strong>API Port:</strong> 8080</li>
                         <li><strong>Collection:</strong> extrag_knowledge</li>
                     </ul>
+                </div>
+
+                <div class="management-grid">
+                    <div class="query-panel">
+                        <h3>Cache Management</h3>
+                        <p class="subtitle">Reset ingestion history to force re-indexing</p>
+                        <button id="clear-cache-btn" class="btn btn-outline btn-danger">
+                            <i data-lucide="trash-2"></i> Clear Ingestion Cache
+                        </button>
+                    </div>
+
+                    <div class="query-panel">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
+                            <h3>Collection Management</h3>
+                            <button id="refresh-cols-btn" class="btn btn-sm btn-outline" title="Refresh list">
+                                <i data-lucide="refresh-cw"></i>
+                            </button>
+                        </div>
+                        <p class="subtitle">Active vector database collections</p>
+                        <div class="table-container mini-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th width="80px">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="collections-body">
+                                    <tr>
+                                        <td colspan="2" class="loading-state">Loading collections...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
 

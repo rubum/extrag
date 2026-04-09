@@ -102,13 +102,14 @@ impl VectorStore for InMemoryVectorStore {
         Ok(results)
     }
 
-    async fn update_utility(&self, id: &str, delta: f32) -> Result<(), ExtragError> {
+    async fn update_utility(&self, id: &str, reward: f32) -> Result<(), ExtragError> {
         let mut guard = self
             .documents
             .write()
             .map_err(|_| ExtragError::VectorStoreError("Lock poisoned".into()))?;
         if let Some(doc) = guard.iter_mut().find(|d| d.id == id) {
-            doc.utility += delta;
+            let alpha = 0.1;
+            doc.utility = doc.utility + alpha * (reward - doc.utility);
         }
         Ok(())
     }
@@ -119,6 +120,20 @@ impl VectorStore for InMemoryVectorStore {
             .write()
             .map_err(|_| ExtragError::VectorStoreError("Lock poisoned".into()))?;
         guard.retain(|doc| doc.chunk.source_id != source_id);
+        Ok(())
+    }
+
+    async fn list_collections(&self) -> Result<Vec<String>, ExtragError> {
+        // Return a mock collection name
+        Ok(vec!["in_memory_test".to_string()])
+    }
+
+    async fn delete_collection(&self, _name: &str) -> Result<(), ExtragError> {
+        let mut guard = self
+            .documents
+            .write()
+            .map_err(|_| ExtragError::VectorStoreError("Lock poisoned".into()))?;
+        guard.clear();
         Ok(())
     }
 }
