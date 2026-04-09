@@ -4,7 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Extrag - Agentic ETL-to-RAG Engine</title>
+    <title>Extrag | Agentic ETL Engine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
@@ -14,24 +17,23 @@
         <!-- Sidebar Navigation -->
         <aside class="sidebar">
             <div class="brand">
-                <i data-lucide="database" class="logo-icon"></i>
-                <span>Extrag Engine</span>
+                <span>Extrag Web</span>
             </div>
             <nav class="nav-links">
                 <a href="#" class="nav-item active" data-view="retrieval">
-                    <i data-lucide="layout-dashboard"></i> Workspace
+                    <i data-lucide="search"></i> Explorer
                 </a>
                 <a href="#" class="nav-item" data-view="ingestion">
-                    <i data-lucide="hard-drive-upload"></i> Ingestion Jobs
+                    <i data-lucide="upload-cloud"></i> Ingestion
                 </a>
                 <a href="#" class="nav-item" data-view="config">
-                    <i data-lucide="settings"></i> Configuration
+                    <i data-lucide="sliders"></i> Settings
                 </a>
             </nav>
             <div class="sidebar-footer">
                 <div class="user-status">
                     <div class="status-indicator online"></div>
-                    <span>Engine running</span>
+                    <span class="engine-status">Engine running</span>
                 </div>
             </div>
         </aside>
@@ -39,46 +41,52 @@
         <!-- Main Content Area -->
         <main class="main-content">
             <header class="top-nav">
-                <h1 id="view-title">Data Workspace</h1>
-                <div class="action-bar">
-                    <button class="btn btn-outline"><i data-lucide="bell"></i></button>
-                    <div class="avatar">A</div>
+                <div class="nav-content">
+                    <h1 id="view-title">Dynamic Explore</h1>
+                    <div class="action-bar">
+                        <button class="btn btn-outline" title="Notifications"><i data-lucide="bell"></i></button>
+                        <div class="avatar">M</div>
+                    </div>
                 </div>
             </header>
 
             <div class="view-container" id="view-retrieval">
-                <div class="query-panel">
-                    <h3>Semantic Explorer</h3>
-                    <p class="subtitle">Execute advanced vector search with MemRL Fusion</p>
+                <div class="panel">
+                    <h3><i data-lucide="compass"></i> Semantic Explorer</h3>
+                    <p class="subtitle">Query the vector store with MemRL value-aware fusion.</p>
                     <form id="retrieve-form" class="search-form">
                         <div class="input-group">
                             <i data-lucide="search" class="search-icon"></i>
-                            <input type="text" id="query-input" placeholder="Query the knowledge base..." required>
+                            <input type="text" id="query-input" placeholder="Type a concept or question..." required>
                             <button type="submit" class="btn btn-primary">Run Query</button>
                         </div>
                         <div class="options">
                             <label class="toggle">
                                 <input type="checkbox" id="use-hyde" checked>
                                 <span class="slider"></span>
-                                Enable HyDE
+                                Hypothetical Expansion (HyDE)
                             </label>
                             <div class="topk-wrapper">
-                                <label for="top-k">Top K:</label>
-                                <input type="number" id="top-k" value="5" min="1" max="20" class="sm-input">
+                                <label for="top-k">Limit:</label>
+                                <div class="num-input-control">
+                                    <button type="button" class="num-btn" id="dec-top-k" title="Decrease">-</button>
+                                    <input type="number" id="top-k" value="5" min="1" max="25" readonly>
+                                    <button type="button" class="num-btn" id="inc-top-k" title="Increase">+</button>
+                                </div>
                             </div>
                         </div>
                     </form>
                 </div>
 
-                <div class="results-panel">
-                    <h3>Retrieved Context</h3>
+                <div class="panel">
+                    <h3><i data-lucide="layers"></i> Contextual Matches</h3>
                     <div class="table-container">
                         <table id="results-table">
                             <thead>
                                 <tr>
                                     <th width="10%">Score</th>
-                                    <th width="60%">Content</th>
-                                    <th width="10%">Utility (Q)</th>
+                                    <th width="50%">Content</th>
+                                    <th width="20%">Utility (Q)</th>
                                     <th width="20%">RL Feedback</th>
                                 </tr>
                             </thead>
@@ -93,8 +101,8 @@
             </div>
 
             <div class="view-container hidden" id="view-ingestion">
-                <div class="query-panel">
-                    <h3>New Ingestion Job</h3>
+                <div class="panel">
+                    <h3><i data-lucide="upload-cloud"></i> Ingestion Pipeline</h3>
                     <p class="subtitle">Extract, chunk, and index a new directory into Qdrant</p>
                     <form id="ingest-form" class="search-form">
                         <div class="input-group">
@@ -112,8 +120,8 @@
             </div>
 
             <div class="view-container hidden" id="view-config">
-                <div class="query-panel">
-                    <h3>System Configuration</h3>
+                <div class="panel">
+                    <h3><i data-lucide="database"></i> System State</h3>
                     <p class="subtitle">Engine constants (Read-Only)</p>
                     <ul class="config-list">
                         <li><strong>Ollama Host:</strong> http://localhost:11434</li>
@@ -124,17 +132,18 @@
                 </div>
 
                 <div class="management-grid">
-                    <div class="query-panel">
-                        <h3>Cache Management</h3>
+                    <div class="panel">
+                        <h3><i data-lucide="trash-2" class="modal-icon-warning"></i> Maintenance</h3>
                         <p class="subtitle">Reset ingestion history to force re-indexing</p>
                         <button id="clear-cache-btn" class="btn btn-outline btn-danger">
                             <i data-lucide="trash-2"></i> Clear Ingestion Cache
                         </button>
                     </div>
 
-                    <div class="query-panel">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
-                            <h3>Collection Management</h3>
+                    <div class="panel">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--sp-2)">
+                            <h3><i data-lucide="list"></i> Collections</h3>
                             <button id="refresh-cols-btn" class="btn btn-sm btn-outline" title="Refresh list">
                                 <i data-lucide="refresh-cw"></i>
                             </button>
@@ -161,6 +170,23 @@
 
         </main>
     </div>
+    <!-- Global Modal System -->
+    <div id="modal-container" class="modal-overlay hidden">
+        <div class="modal-box">
+            <div class="modal-header">
+                <i id="modal-icon" data-lucide="alert-triangle"></i>
+                <h2 id="modal-title" class="modal-title">Confirm Action</h2>
+            </div>
+            <div class="modal-body" id="modal-message">
+                Are you sure you want to proceed?
+            </div>
+            <div class="modal-footer">
+                <button id="modal-cancel-btn" class="btn btn-outline">Cancel</button>
+                <button id="modal-confirm-btn" class="btn btn-primary">Proceed</button>
+            </div>
+        </div>
+    </div>
+
     <script src="js/app.js"></script>
     <script>
         lucide.createIcons();
