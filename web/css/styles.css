@@ -369,10 +369,33 @@ body {
 
 /* Result Tables */
 .table-container {
-    overflow: hidden;
+    overflow-y: auto;
+    max-height: 600px;
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
     background: rgba(15, 23, 42, 0.4);
+}
+
+/* Custom Scrollbar - Sleek & Minimal */
+.table-container::-webkit-scrollbar,
+.content-preview::-webkit-scrollbar {
+    width: 5px;
+}
+
+.table-container::-webkit-scrollbar-track,
+.content-preview::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.table-container::-webkit-scrollbar-thumb,
+.content-preview::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover,
+.content-preview::-webkit-scrollbar-thumb:hover {
+    background: var(--brand-primary);
 }
 
 table {
@@ -389,14 +412,17 @@ th {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    background: rgba(30, 41, 59, 0.8);
+    background: rgba(30, 41, 59, 0.95);
+    backdrop-filter: blur(4px);
+    position: sticky; top: 0; z-index: 5;
 }
 
 td {
     padding: var(--sp-4) var(--sp-5);
     border-bottom: 1px solid var(--border-subtle);
-    font-size: 14px;
+    font-size: 13.5px;
     vertical-align: top;
+    color: var(--text-secondary);
 }
 
 tr:last-child td {
@@ -408,7 +434,7 @@ tr:hover:not(.empty-state) {
 }
 
 .pill {
-    padding: 4px 10px;
+    padding: 3px 10px;
     background: var(--bg-elevated);
     border-radius: 20px;
     font-size: 11px;
@@ -420,20 +446,22 @@ tr:hover:not(.empty-state) {
 .utility-val {
     font-weight: 700;
     color: var(--brand-primary);
+    font-family: monospace;
 }
 
 .content-preview {
     background: #020617;
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
-    padding: var(--sp-3);
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
-    font-size: 13px;
-    line-height: 1.6;
+    padding: var(--sp-4);
+    font-family: 'Inter', ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+    font-size: 12.5px;
+    line-height: 1.7;
     color: var(--text-secondary);
-    max-height: 120px;
+    max-height: 200px;
     overflow-y: auto;
     white-space: pre-wrap;
+    box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.3);
 }
 
 /* Switches & Toggles */
@@ -526,22 +554,22 @@ input:checked+.slider:before {
     opacity: 0.6;
 }
 
-/* Modal Styles Refined */
+/* Modal System (Premium Glassmorphism) */
 .modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(2, 6, 23, 0.8);
-    backdrop-filter: blur(4px);
+    background-color: rgba(2, 6, 23, 0.85); /* Darker for better focus */
+    backdrop-filter: blur(8px);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 100;
+    z-index: 1000;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.2s;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .modal-overlay:not(.hidden) {
@@ -550,19 +578,59 @@ input:checked+.slider:before {
 }
 
 .modal-box {
-    background-color: var(--bg-surface);
-    border: 1px solid var(--border);
+    background-color: rgba(30, 41, 59, 0.9); /* Translucent Slate */
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: var(--radius-lg);
     width: 90%;
     max-width: 440px;
     padding: var(--sp-8);
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    transform: scale(0.95);
-    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 
+        0 20px 25px -5px rgba(0, 0, 0, 0.6), 
+        0 10px 10px -5px rgba(0, 0, 0, 0.4),
+        inset 0 1px 1px rgba(255, 255, 255, 0.05);
+    transform: scale(0.9) translateY(10px);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .modal-overlay:not(.hidden) .modal-box {
-    transform: scale(1);
+    transform: scale(1) translateY(0);
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    margin-bottom: var(--sp-4);
+}
+
+#modal-icon {
+    width: 32px;
+    height: 32px;
+}
+
+.modal-icon-warning { color: var(--danger); }
+.modal-icon-info { color: var(--brand-primary); }
+
+.modal-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+
+.modal-body {
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: var(--sp-8);
+    font-size: 14px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--sp-3);
 }
 
 /* Animation Utils */
