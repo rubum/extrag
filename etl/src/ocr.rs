@@ -1,11 +1,49 @@
+//! # Optical Character Recognition (OCR) Module
+//!
+//! This module provides high-fidelity text extraction from images and scanned documents 
+//! using the pure-Rust `ocrs` engine and the `rten` inference runtime.
+//!
+//! ## Design Architecture
+//!
+//! The OCR system is designed as a fallback for the ETL pipeline. When a document (like a PDF) 
+//! lacks a searchable text layer, the system can rasterize the document into images and 
+//! process them through this module.
+//!
+//! ## Model Requirements
+//!
+//! The OCR engine requires two pre-trained models in `.rten` format:
+//! 1. **Detection Model**: Responsible for identifying bounding boxes of text regions.
+//! 2. **Recognition Model**: Responsible for converting the identified regions into characters.
+//!
+//! ## Usage Example
+//!
+//! ```rust,no_run
+//! use etl::ocr::OcrEngineWrapper;
+//! use image::open;
+//!
+//! # fn example() -> anyhow::Result<()> {
+//! let det_model = std::fs::read("text-detection.rten")?;
+//! let rec_model = std::fs::read("text-recognition.rten")?;
+//! 
+//! let ocr = OcrEngineWrapper::new(det_model, rec_model)?;
+//! let img = open("scanned_page.png")?;
+//! 
+//! let text = ocr.recognize(&img)?;
+//! println!("Extracted text: {}", text);
+//! # Ok(())
+//! # }
+//! ```
+
 use extrag_core::error::ExtragError;
 use image::DynamicImage;
 use ocrs::{OcrEngine, OcrEngineParams};
 use rten::Model;
 use rten_tensor::NdTensor;
 
-/// A pure-Rust OCR engine.
+/// A wrapper around the `ocrs` engine providing a simplified interface 
+/// for the Extrag ETL pipeline.
 pub struct OcrEngineWrapper {
+    /// The underlying pure-Rust OCR engine.
     engine: OcrEngine,
 }
 
