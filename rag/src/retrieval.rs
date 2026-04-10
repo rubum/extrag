@@ -1,6 +1,6 @@
 //! # Advanced Retrieval Engine
-//! 
-//! Orchestrates a multi-stage search process combining hypothetical expansion, 
+//!
+//! Orchestrates a multi-stage search process combining hypothetical expansion,
 //! vector similarity, and Reinforcement Learning utility profiles (MemRL).
 
 use extrag_core::embeddings::Embedder;
@@ -19,6 +19,14 @@ pub struct RetrievalConfig {
     pub semantic_weight: f32,
     /// Weight given to historical utility ($Q$-score) in fusion.
     pub utility_weight: f32,
+}
+
+/// The result of a multi-stage retrieval operation.
+pub struct RetrievalOutput {
+    /// The final, fused, and potentially reranked results.
+    pub results: Vec<SearchResult>,
+    /// The hypothetical document generated (if HyDE was enabled).
+    pub hyde_doc: Option<String>,
 }
 
 impl Default for RetrievalConfig {
@@ -64,7 +72,7 @@ impl AdvancedRetrievalEngine {
     }
 
     /// Executes the multi-stage, agentic retrieval process.
-    /// 
+    ///
     /// # The Stages:
     /// 1. **HyDE**: Generates a hypothetical expansion if `use_hyde` is enabled.
     /// 2. **Vector Search**: Performs an initial dense retrieval.
@@ -78,14 +86,16 @@ impl AdvancedRetrievalEngine {
         query: &str,
         config: RetrievalConfig,
         filter: Option<SearchFilter>,
-    ) -> Result<Vec<SearchResult>, ExtragError> {
+    ) -> Result<RetrievalOutput, ExtragError> {
         // Stage 1: Context Augmentation (HyDE)
+        let mut hyde_doc = None;
         let search_query = if config.use_hyde && self.llm_client.is_some() {
             let llm = self.llm_client.as_ref().unwrap();
             let hypo = llm.generate_hypothetical_document(query).await;
             match hypo {
                 Ok(doc) => {
                     tracing::debug!("Generated HyDE document: {}", doc);
+                    hyde_doc = Some(doc.clone());
                     doc
                 }
                 Err(e) => {
@@ -105,7 +115,7 @@ impl AdvancedRetrievalEngine {
             .await?;
 
         if results.is_empty() {
-            return Ok(results);
+            return Ok(RetrievalOutput { results, hyde_doc });
         }
 
         // Stage 3: MemRL Z-Score (Value-Aware) Fusion
@@ -146,11 +156,8 @@ impl AdvancedRetrievalEngine {
         // Optional Stage 4: Cross-Encoder Re-ranking
         if let Some(reranker) = &self.reranker {
             results = reranker.rerank(query, results).await?;
-        } else {
-            // Apply truncation to top_k if no external reranker is used
-            results.truncate(config.top_k);
         }
 
-        Ok(results)
+        Ok(RetrievalOutput { results, hyde_doc })
     }
 }

@@ -31,8 +31,13 @@ impl OllamaClient {
     /// * `base_url` - The endpoint of the Ollama server (e.g., "http://localhost:11434").
     /// * `model` - Optional model name override. Defaults to [`DEFAULT_OLLAMA_MODEL`].
     pub fn new(base_url: impl Into<String>, model: Option<String>) -> Self {
+        let client = Client::builder()
+            .timeout(std::time::Duration::from_secs(120))
+            .build()
+            .unwrap_or_default();
+
         Self {
-            client: Client::new(),
+            client,
             base_url: base_url.into(),
             model: model.unwrap_or_else(|| DEFAULT_OLLAMA_MODEL.to_string()),
         }
@@ -50,7 +55,11 @@ struct OllamaGenerateRequest<'a> {
 
 #[derive(Deserialize)]
 struct OllamaGenerateResponse {
-    response: String,
+    pub response: String,
+    #[serde(default)]
+    pub prompt_eval_count: u64,
+    #[serde(default)]
+    pub eval_count: u64,
 }
 
 #[derive(Serialize)]
@@ -84,7 +93,7 @@ impl LlmClient for OllamaClient {
                 Some(system)
             },
             stream: false,
-            think: false,
+            think: true,
         };
 
         let url = format!("{}/api/generate", self.base_url);
@@ -106,6 +115,14 @@ impl LlmClient for OllamaClient {
         let result: OllamaGenerateResponse = resp.json().await.map_err(|e| {
             ExtragError::LlmError(format!("Failed to parse Ollama response: {}", e))
         })?;
+
+        // Emit trace telemetry for the custom TokenUsageLayer
+        tracing::debug!(
+            prompt_tokens = result.prompt_eval_count,
+            completion_tokens = result.eval_count,
+            model = %self.model,
+            "LLM usage telemetry"
+        );
 
         Ok(result.response)
     }

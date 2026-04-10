@@ -102,6 +102,8 @@ impl BatchExtractor for FilesystemExtractor {
         tracing::info!("Found {} candidate files for processing", file_paths.len());
 
         let mut payloads = Vec::new();
+        let mut bytes_ingested = 0;
+        
         for path in file_paths {
             let content = match tokio::fs::read(&path).await {
                 Ok(c) => c,
@@ -111,6 +113,7 @@ impl BatchExtractor for FilesystemExtractor {
                 }
             };
 
+            bytes_ingested += content.len() as u64;
             let source_id = path.to_string_lossy().to_string();
             let format = Self::determine_format(&path);
 
@@ -129,6 +132,11 @@ impl BatchExtractor for FilesystemExtractor {
                 metadata,
             });
         }
+
+        tracing::debug!(
+            bytes_ingested = bytes_ingested,
+            "Extracted {} payloads totaling {} bytes", payloads.len(), bytes_ingested
+        );
 
         Ok(payloads)
     }

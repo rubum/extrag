@@ -37,9 +37,13 @@ pub struct AppState {
     pub embedder: Arc<OllamaClient>,
     pub llm_client: Arc<OllamaClient>,
     pub sync_store: Arc<SqliteSyncStateStore>,
+    pub metrics: DashboardMetrics,
 }
 
 mod routes;
+mod telemetry;
+
+use telemetry::{DashboardMetrics, DashboardTelemetryLayer};
 
 // Payloads moved to routes.rs
 
@@ -47,13 +51,17 @@ mod routes;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let metrics = DashboardMetrics::default();
+
     // Initialize structured tracing
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG")
-                .unwrap_or_else(|_| "info,extrag_core=debug,rag=debug,api=debug".into()),
+            std::env::var("RUST_LOG").unwrap_or_else(|_| {
+                "info,extrag_core=debug,rag=debug,etl=debug,api=debug,extrag::telemetry=info".into()
+            }),
         ))
         .with(tracing_subscriber::fmt::layer())
+        .with(DashboardTelemetryLayer::new(metrics.clone()))
         .init();
 
     tracing::info!("Initializing Extrag Engine...");
@@ -87,6 +95,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         embedder: Arc::new(embedder),
         llm_client: Arc::new(llm_client),
         sync_store: Arc::new(sync_store),
+        metrics,
     };
 
     let web_dir = std::env::var("WEB_DIR").unwrap_or_else(|_| "../web".to_string());
@@ -103,6 +112,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             delete(routes::handle_delete_collection),
         )
         .route("/v1/cache/clear", post(routes::handle_clear_cache))
+        .route("/v1/telemetry", get(routes::handle_telemetry))
         .fallback_service(ServeDir::new(web_dir))
         .with_state(state);
 

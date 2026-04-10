@@ -1,6 +1,6 @@
 //! # LLM (Large Language Model) Inference
-//! 
-//! Provides abstractions for interacting with generative AI models. 
+//!
+//! Provides abstractions for interacting with generative AI models.
 //! These traits facilitate advanced retrieval techniques like HyDE and Multi-Query expansion.
 
 use crate::error::ExtragError;
@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 /// System message or prompt configuration for generating text.
-/// 
+///
 /// Encapsulates both the persona instructions (system) and the user's specific request.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PromptTemplate {
@@ -29,8 +29,8 @@ impl PromptTemplate {
 }
 
 /// Abstract trait for communicating with Large Language Models.
-/// 
-/// Provides high-level methods for generating context-aware text, generating 
+///
+/// Provides high-level methods for generating context-aware text, generating
 /// hypothetical documents (HyDE), and expanding queries.
 #[async_trait]
 pub trait LlmClient: Send + Sync {
@@ -42,7 +42,7 @@ pub trait LlmClient: Send + Sync {
         -> Result<String, ExtragError>;
 
     /// Specifically used for Hypothetical Document Embeddings (HyDE).
-    /// 
+    ///
     /// Generates a grounded, factual hypothetical paragraph that answers the query
     /// to improve dense vector retrieval performance.
     async fn generate_hypothetical_document(&self, query: &str) -> Result<String, ExtragError> {
@@ -51,8 +51,8 @@ pub trait LlmClient: Send + Sync {
     }
 
     /// Specifically used for Multi-Query Expansion.
-    /// 
-    /// Generates multiple semantically similar variations of the original query 
+    ///
+    /// Generates multiple semantically similar variations of the original query
     /// to increase search recall across the vector store.
     async fn generate_query_variations(
         &self,

@@ -192,9 +192,9 @@ impl<'a> IngestionPipeline<'a> {
             })
             .collect();
 
-        let count = documents.len();
+        let count = documents.len() as u64;
         self.vector_store.index(documents).await?;
-        tracing::debug!("Successfully indexed batch of {} chunks", count);
-        Ok(count)
+        tracing::debug!(chunks_indexed = count, "Successfully indexed batch of {} chunks", count);
+        Ok(count as usize)
     }
 }

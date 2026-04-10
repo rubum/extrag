@@ -10,14 +10,20 @@
 //! Handlers are designed to be stateless, pulling all necessary backend connectors
 //! from the shared `AppState`.
 
+use async_stream::stream;
 use axum::{
     extract::{Json, Path, State},
     http::StatusCode,
-    response::IntoResponse,
+    response::{
+        IntoResponse,
+        sse::{Event, KeepAlive, Sse},
+    },
 };
 use serde::{Deserialize, Serialize};
+use std::convert::Infallible;
 
 use extrag_core::chunker::RecursiveCharacterChunker;
+use extrag_core::llm::LlmClient;
 use extrag_core::vector_store::VectorStore;
 
 use rag::ingestion::IngestionPipeline;
@@ -52,6 +58,10 @@ pub struct RetrieveRequest {
 
 #[derive(Serialize)]
 pub struct RetrieveResponse {
+    /// The synthesized Generative response from the LLM based on extracted chunk context.
+    pub generation: String,
+    /// The hypothetical document generated (if HyDE was enabled).
+    pub hyde_doc: Option<String>,
     /// The returned context chunks containing the data and utility profiles.
     pub results: Vec<serde_json::Value>,
 }
@@ -134,49 +144,126 @@ pub async fn handle_ingest(
 pub async fn handle_retrieve(
     State(state): State<AppState>,
     Json(payload): Json<RetrieveRequest>,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
-    tracing::info!("Retrieving context for query: {}", payload.query);
+) -> impl IntoResponse {
+    let stream = stream! {
+        yield Ok::<Event, Infallible>(Event::default().json_data(serde_json::json!({
+            "type": "log",
+            "message": format!("[ENGINE] Query received: '{}'. Initiating retrieval pipeline...", payload.query)
+        })).unwrap());
 
-    let embedder = Box::new((*state.embedder).clone());
-    let vector_store = Box::new((*state.vector_store).clone());
-    let llm_client = Box::new((*state.llm_client).clone());
+        let embedder = Box::new((*state.embedder).clone());
+        let vector_store = Box::new((*state.vector_store).clone());
+        let llm_client = Box::new((*state.llm_client).clone());
 
-    let engine = AdvancedRetrievalEngine::new(embedder, vector_store).with_llm(llm_client);
+        let engine = AdvancedRetrievalEngine::new(embedder, vector_store).with_llm(llm_client);
 
-    let config = RetrievalConfig {
-        top_k: payload.top_k.unwrap_or(5),
-        use_hyde: payload.use_hyde.unwrap_or(true),
-        semantic_weight: 0.7,
-        utility_weight: 0.3,
+        let config = RetrievalConfig {
+            top_k: payload.top_k.unwrap_or(5),
+            use_hyde: payload.use_hyde.unwrap_or(true),
+            semantic_weight: 0.7,
+            utility_weight: 0.3,
+        };
+
+        if config.use_hyde {
+            yield Ok::<Event, Infallible>(Event::default().json_data(serde_json::json!({
+                "type": "log",
+                "message": "[HYDE] Generating hypothetical thought trace..."
+            })).unwrap());
+        }
+
+        let output = match engine.retrieve(&payload.query, config, None).await {
+            Ok(o) => o,
+            Err(e) => {
+                yield Ok::<Event, Infallible>(Event::default().json_data(serde_json::json!({
+                    "type": "error",
+                    "message": format!("Retrieval failed: {}", e)
+                })).unwrap());
+                return;
+            }
+        };
+
+        yield Ok::<Event, Infallible>(Event::default().json_data(serde_json::json!({
+            "type": "log",
+            "message": format!("[SEARCH] Found {} contexts. Merging semantic similarity and RL utility...", output.results.len())
+        })).unwrap());
+
+        let results = output.results;
+        let hyde_doc = output.hyde_doc;
+
+        let context_blocks: Vec<String> = results
+            .iter()
+            .map(|r| {
+                format!(
+                    "Source ({}):\n{}",
+                    r.document.chunk.source_id, r.document.chunk.content
+                )
+            })
+            .collect();
+        let mut combined_context = context_blocks.join("\n\n---\n\n");
+
+        const CONTEXT_BUDGET: usize = 6000;
+        if combined_context.len() > CONTEXT_BUDGET {
+            yield Ok::<Event, Infallible>(Event::default().json_data(serde_json::json!({
+                "type": "log",
+                "message": format!("[BUDGET] Context exceeds {} chars. Truncating for synthesis...", CONTEXT_BUDGET)
+            })).unwrap());
+            combined_context.truncate(CONTEXT_BUDGET);
+            combined_context.push_str("\n\n[... Context truncated for brevity ...]");
+        }
+
+        let system_prompt = format!(
+            "You are Extrag Agent, an expert AI assistant answering a user's question based strictly on the provided context chunks.\n\nCONTEXT:\n{}\n\nAnswer the user's question using only this context. If the answer is not in the context, say so gracefully. Use markdown to format your answer effortlessly with bolded text, lists, and code blocks if applicable.",
+            combined_context
+        );
+
+        yield Ok::<Event, Infallible>(Event::default().json_data(serde_json::json!({
+            "type": "log",
+            "message": "[SYNTHESIS] Projecting agentic response via LLM..."
+        })).unwrap());
+
+        let generation = match state
+            .llm_client
+            .generate_with_system(&system_prompt, &payload.query)
+            .await {
+                Ok(g) => g,
+                Err(e) => {
+                    yield Ok::<Event, Infallible>(Event::default().json_data(serde_json::json!({
+                        "type": "error",
+                        "message": format!("Synthesis failed: {}", e)
+                    })).unwrap());
+                    return;
+                }
+            };
+
+        yield Ok::<Event, Infallible>(Event::default().json_data(serde_json::json!({
+            "type": "log",
+            "message": "[FINISH] Pipeline complete. Handing over to UI."
+        })).unwrap());
+
+        let json_results: Vec<serde_json::Value> = results
+            .into_iter()
+            .map(|r| {
+                serde_json::json!({
+                    "score": r.score,
+                    "id": r.document.id,
+                    "utility": r.document.utility,
+                    "content": r.document.chunk.content,
+                    "source": r.document.chunk.source_id,
+                })
+            })
+            .collect();
+
+        yield Ok::<Event, Infallible>(Event::default().json_data(serde_json::json!({
+            "type": "result",
+            "data": RetrieveResponse {
+                generation,
+                hyde_doc,
+                results: json_results,
+            }
+        })).unwrap());
     };
 
-    let results = engine
-        .retrieve(&payload.query, config, None)
-        .await
-        .map_err(|e| {
-            tracing::error!("Retrieval Engine failed: {}", e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Retrieval failed: {}", e),
-            )
-        })?;
-
-    let json_results: Vec<serde_json::Value> = results
-        .into_iter()
-        .map(|r| {
-            serde_json::json!({
-                "score": r.score,
-                "id": r.document.id,
-                "utility": r.document.utility,
-                "content": r.document.chunk.content,
-                "source": r.document.chunk.source_id,
-            })
-        })
-        .collect();
-
-    Ok(Json(RetrieveResponse {
-        results: json_results,
-    }))
+    Sse::new(stream).keep_alive(KeepAlive::default())
 }
 
 /// `POST /v1/feedback`
@@ -279,5 +366,21 @@ pub async fn handle_clear_cache(
 
     Ok(Json(serde_json::json!({
         "message": "Ingestion cache cleared successfully. Next ingestion will be a full sync."
+    })))
+}
+
+/// `GET /v1/telemetry`
+/// Returns real-time metrics tracked by the telemetry layer.
+pub async fn handle_telemetry(
+    State(state): State<AppState>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let metrics = &state.metrics;
+    Ok(Json(serde_json::json!({
+        "total_prompt": metrics.total_prompt.load(std::sync::atomic::Ordering::Relaxed),
+        "total_completion": metrics.total_completion.load(std::sync::atomic::Ordering::Relaxed),
+        "total_chunks": metrics.total_chunks.load(std::sync::atomic::Ordering::Relaxed),
+        "total_bytes": metrics.total_bytes.load(std::sync::atomic::Ordering::Relaxed),
+        "total_retrievals": metrics.total_retrievals.load(std::sync::atomic::Ordering::Relaxed),
+        "total_errors": metrics.total_errors.load(std::sync::atomic::Ordering::Relaxed),
     })))
 }

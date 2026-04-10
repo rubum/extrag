@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
             item.classList.add('active');
 
             const titles = {
+                'dashboard': 'System Dashboard',
                 'retrieval': 'Dynamic Explore',
                 'ingestion': 'Data Pipeline',
                 'config': 'System State',
@@ -24,18 +25,91 @@ document.addEventListener('DOMContentLoaded', () => {
             views.forEach(v => {
                 if (v.id === `view-${targetView}`) {
                     v.classList.remove('hidden');
-                    if (targetView === 'config') {
-                        loadCollections();
-                    }
-                    if (targetView === 'documentation') {
-                        initDocTabs();
-                    }
+                    if (targetView === 'config') loadCollections();
+                    if (targetView === 'documentation') initDocTabs();
+                    if (targetView === 'dashboard') startTelemetryPolling();
                 } else {
                     v.classList.add('hidden');
                 }
             });
+
+            if (targetView !== 'dashboard') {
+                stopTelemetryPolling();
+            }
         });
     });
+
+    // -- Telemetry Dashboard Logic --
+    let telemetryInterval = null;
+
+    function formatNumber(num) {
+        return new Intl.NumberFormat().format(num);
+    }
+
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024, sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    async function fetchTelemetry() {
+        try {
+            // Add native cache-busting parameter and no-store to prevent aggressive browser caching
+            const res = await fetch(`/v1/telemetry?_t=${Date.now()}`, { cache: 'no-store' });
+            if (!res.ok) throw new Error('Network error');
+            const data = await res.json();
+
+
+            document.getElementById('dash-chunks').textContent = formatNumber(data.total_chunks);
+            document.getElementById('dash-bytes').textContent = formatBytes(data.total_bytes);
+            document.getElementById('dash-queries').textContent = formatNumber(data.total_retrievals);
+            document.getElementById('dash-prompt').textContent = formatNumber(data.total_prompt);
+            document.getElementById('dash-completion').textContent = formatNumber(data.total_completion);
+            document.getElementById('dash-errors').textContent = formatNumber(data.total_errors);
+
+            // Render live activity feed
+            const activityLog = document.getElementById('activity-log');
+            if (activityLog && data.events) {
+                const logsHtml = data.events.map(ev => `
+                    <div class="log-entry ${ev.level}">
+                        <span class="log-time">${ev.timestamp}</span>
+                        <span class="log-level">${ev.level}</span>
+                        <span class="log-message">${escapeHtml(ev.message)}</span>
+                    </div>
+                `).join('');
+
+                // Only update if changed to avoid jumpy scrolling
+                if (activityLog.dataset.lastCount !== data.events.length.toString() || activityLog.dataset.lastMsg !== data.events[data.events.length - 1]?.message) {
+                    activityLog.innerHTML = logsHtml;
+                    activityLog.scrollTop = activityLog.scrollHeight;
+                    activityLog.dataset.lastCount = data.events.length;
+                    activityLog.dataset.lastMsg = data.events[data.events.length - 1]?.message;
+                }
+            }
+
+        } catch (error) {
+            console.error('Failed to fetch telemetry:', error);
+        }
+    }
+
+    function startTelemetryPolling() {
+        if (telemetryInterval) return;
+        fetchTelemetry(); // initial fetch
+        telemetryInterval = setInterval(fetchTelemetry, 2000);
+    }
+
+    function stopTelemetryPolling() {
+        if (telemetryInterval) {
+            clearInterval(telemetryInterval);
+            telemetryInterval = null;
+        }
+    }
+
+    // Trigger initial load if spawned on dashboard
+    if (document.querySelector('.nav-item.active').getAttribute('data-view') === 'dashboard') {
+        startTelemetryPolling();
+    }
 
     // -- Custom Number Input Logic --
     const topkInput = document.getElementById('top-k');
@@ -57,7 +131,47 @@ document.addEventListener('DOMContentLoaded', () => {
     const retrieveForm = document.getElementById('retrieve-form');
     const resultsBody = document.getElementById('results-body');
 
+    const toggleChunksBtn = document.getElementById('toggle-chunks-btn');
+    if (toggleChunksBtn) {
+        toggleChunksBtn.addEventListener('click', () => {
+            const chunksPanel = document.getElementById('chunks-panel');
+            if (chunksPanel.classList.contains('hidden')) {
+                chunksPanel.classList.remove('hidden');
+                toggleChunksBtn.innerHTML = '<i data-lucide="chevron-up"></i> Hide Context Sources';
+            } else {
+                chunksPanel.classList.add('hidden');
+                toggleChunksBtn.innerHTML = '<i data-lucide="chevron-down"></i> View Context Sources';
+            }
+            lucide.createIcons();
+        });
+    }
+
     if (retrieveForm) {
+        // Auto-scaling logic for all textareas in forms
+        document.querySelectorAll('.search-form textarea').forEach(textarea => {
+            textarea.addEventListener('input', () => {
+                textarea.style.height = 'auto';
+                textarea.style.height = (textarea.scrollHeight) + 'px';
+            });
+
+            // Handle Enter key for submission (Shift+Enter for new line)
+            textarea.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    textarea.closest('form').requestSubmit();
+                }
+            });
+        });
+
+        // Add HyDE toggle logic
+        const hydeToggle = document.getElementById('hyde-toggle');
+        if (hydeToggle) {
+            hydeToggle.addEventListener('click', () => {
+                const panel = document.getElementById('hyde-panel');
+                if (panel) panel.classList.toggle('collapsed');
+            });
+        }
+
         retrieveForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const query = document.getElementById('query-input').value.trim();
@@ -66,8 +180,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const submitBtn = retrieveForm.querySelector('button[type="submit"]');
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i data-lucide="loader" class="spin"></i> Searching...';
+            submitBtn.innerHTML = '<i data-lucide="loader" class="spin"></i> Querying...';
             lucide.createIcons();
+
+            // Reset UI state for new query
+            const hydePanel = document.getElementById('hyde-panel');
+            const genPanel = document.getElementById('generation-panel');
+            const chunksPanel = document.getElementById('chunks-panel');
+            const genContent = document.getElementById('generation-content');
+
+            if (hydePanel) {
+                hydePanel.classList.add('hidden');
+                hydePanel.classList.remove('collapsed'); // Reset to expanded for new query
+            }
+            if (genPanel) {
+                genPanel.classList.remove('hidden');
+                genContent.innerHTML = `<div class="status-row ink"></i> 1. Inspecting retrieved context chunks...</div>`;
+                lucide.createIcons();
+            }
+            if (chunksPanel) chunksPanel.classList.add('hidden');
+            resultsBody.innerHTML = '';
 
             try {
                 const response = await fetch('/v1/retrieve', {
@@ -78,14 +210,127 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-                const data = await response.json();
-                renderResults(data.results);
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = "";
+
+                // Clear status row and start a collapsible log group
+                if (genContent) {
+                    genContent.innerHTML = `
+                        <div class="panel-trigger" id="logs-toggle" style="margin-top: 0; padding-bottom: var(--sp-2);">
+                            <span class="section-header" style="margin-bottom: 0; border-bottom: none;">System Trace</span>
+                            <i data-lucide="chevron-down" class="chevron"></i>
+                        </div>
+                        <div id="logs-wrapper" class="collapsible-wrapper">
+                            <div class="system-logs" id="retrieval-logs"></div>
+                        </div>
+                    `;
+                    lucide.createIcons();
+
+                    // Add toggle listener for the logs specifically
+                    const logsToggle = document.getElementById('logs-toggle');
+                    if (logsToggle) {
+                        logsToggle.addEventListener('click', () => {
+                            const wrapper = document.getElementById('logs-wrapper');
+                            const chevron = logsToggle.querySelector('.chevron');
+                            
+                            wrapper.classList.toggle('collapsed');
+                            if (chevron) {
+                                chevron.classList.toggle('collapsed');
+                            }
+                        });
+                    }
+                }
+                const logContainer = document.getElementById('retrieval-logs');
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        const str = line.trim();
+                        if (!str || !str.startsWith('data: ')) continue;
+
+                        try {
+                            const event = JSON.parse(str.slice(6));
+                            if (event.type === 'log') {
+                                const logLine = document.createElement('div');
+                                logLine.className = 'log-entry';
+                                logLine.innerHTML = `<span class="log-time">${new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span> <span class="log-msg">${escapeHtml(event.message)}</span>`;
+                                logContainer.appendChild(logLine);
+                                logContainer.scrollTop = logContainer.scrollHeight;
+                            } else if (event.type === 'error') {
+                                throw new Error(event.message);
+                            } else if (event.type === 'result') {
+                                const data = event.data;
+                                console.log("Final retrieval data received:", data);
+
+                                // Present HyDE thought trace if present
+                                if (hydePanel && data.hyde_doc) {
+                                    hydePanel.classList.remove('hidden');
+                                    document.getElementById('hyde-content').textContent = data.hyde_doc;
+                                }
+
+                                // Present generative synthesized response
+                                if (genPanel && data.generation && data.generation.trim().length > 0) {
+                                    genPanel.classList.remove('hidden');
+                                    if (typeof marked !== 'undefined') {
+                                        // Keep logs at top, then response? Or replace? 
+                                        // User said "instead of", but logs are cool. 
+                                        // I'll put a divider.
+                                        const hr = document.createElement('hr');
+                                        hr.className = 'content-divider';
+                                        genContent.appendChild(hr);
+
+                                        const resDiv = document.createElement('div');
+                                        resDiv.className = 'generation-text fade-in';
+                                        resDiv.innerHTML = marked.parse(data.generation);
+                                        genContent.appendChild(resDiv);
+                                    } else {
+                                        const resDiv = document.createElement('div');
+                                        resDiv.className = 'generation-text';
+                                        resDiv.textContent = data.generation;
+                                        genContent.appendChild(resDiv);
+                                    }
+                                }
+
+                                renderResults(data.results);
+
+                                // Show chunks panel if no results or if specific logic requires it
+                                if (!data.results || data.results.length === 0) {
+                                    if (chunksPanel) chunksPanel.classList.remove('hidden');
+                                }
+                            }
+                        } catch (parseErr) {
+                            console.warn("Failed to parse SSE event", str, parseErr);
+                        }
+                    }
+                }
+
+                const toggleChunksBtn = document.getElementById('toggle-chunks-btn');
+                if (toggleChunksBtn) {
+                    toggleChunksBtn.innerHTML = '<i data-lucide="chevron-down"></i> View Context Sources';
+                    lucide.createIcons();
+                }
+
             } catch (error) {
                 console.error("Retrieval failed", error);
+
+                const genPanel = document.getElementById('generation-panel');
+                const hydePanel = document.getElementById('hyde-panel');
+                if (genPanel) genPanel.classList.add('hidden');
+                if (hydePanel) hydePanel.classList.add('hidden');
+                document.getElementById('chunks-panel').classList.remove('hidden');
+
                 resultsBody.innerHTML = `<tr><td colspan="4" style="color:var(--danger)">Error retrieving context: ${error.message}</td></tr>`;
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Run Query';
+                submitBtn.innerHTML = '<i data-lucide="play"></i> Run Query';
+                lucide.createIcons();
             }
         });
     }
@@ -185,6 +430,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (jobText) jobText.textContent = `Error: ${error.message}`;
             } finally {
                 submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i data-lucide="zap"></i> Run Pipeline';
+                lucide.createIcons();
             }
         });
     }
@@ -426,13 +673,13 @@ document.addEventListener('DOMContentLoaded', () => {
             btns.forEach(btn => {
                 btn.addEventListener('click', () => {
                     const lang = btn.getAttribute('data-lang');
-                    
+
                     // Update all tab groups to the same language for consistency
                     document.querySelectorAll(`.tab-btn[data-lang="${lang}"]`).forEach(b => {
                         const parent = b.closest('.code-tabs');
                         parent.querySelectorAll('.tab-btn').forEach(tb => tb.classList.remove('active'));
                         parent.querySelectorAll('.tab-pane').forEach(tp => tp.classList.remove('active'));
-                        
+
                         b.classList.add('active');
                         parent.querySelector(`.tab-pane[data-lang="${lang}"]`).classList.add('active');
                     });
@@ -470,7 +717,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.innerHTML = '<i data-lucide="check"></i>';
                 btn.classList.add('copied');
                 if (window.lucide) lucide.createIcons();
-                
+
                 setTimeout(() => {
                     btn.innerHTML = originalHTML;
                     btn.classList.remove('copied');

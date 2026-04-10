@@ -11,6 +11,9 @@ rag = { version = "0.1.0", path = "../rag" }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 tokio = { workspace = true, features = ["full"] }
+chrono = "0.4"
 tower-http = { version = "0.6.8", features = ["trace", "fs", "cors"] }
 tracing.workspace = true
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
+async-stream = "0.3.6"
+futures.workspace = true
